@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Study Custom Cards — Flashcards</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--glass: rgba(255,255,255,0.03)}
+    *{box-sizing:border-box}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial; margin:0; min-height:100vh; background:linear-gradient(180deg,#071028 0%, #081424 100%); color:#e6eef6; display:flex; align-items:center; justify-content:center; padding:28px}
+    .wrap{width:980px; max-width:96vw}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    header h1{font-size:20px;margin:0}
+    header p{margin:0;color:var(--muted);font-size:13px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px;padding:28px; box-shadow:0 6px 28px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03)}
+    .question{font-size:18px; line-height:1.45; min-height:84px}
+    .answer{margin-top:18px; padding:16px; border-radius:10px; background:var(--glass); color:#dff6fb; display:none; white-space:pre-wrap}
+    .meta{display:flex;gap:12px;align-items:center;margin-top:14px}
+    .tags{display:flex;gap:8px;flex-wrap:wrap}
+    .tag{font-size:12px;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.03); color:var(--muted)}
+    .controls{display:flex; gap:10px; margin-top:18px}
+    button{background:transparent;color:var(--accent);border:1px solid rgba(6,182,212,0.12);padding:10px 14px;border-radius:10px; cursor:pointer;font-weight:600}
+    button.primary{background:linear-gradient(90deg,var(--accent), #60f0ff); color:#052026; border:none}
+    .small{padding:8px 10px;font-size:13px}
+    .progress{margin-top:12px;color:var(--muted);font-size:13px}
+    footer{display:flex;justify-content:space-between;align-items:center;margin-top:18px;color:var(--muted);font-size:13px}
+    .kbd{background:rgba(255,255,255,0.03);padding:6px;border-radius:6px;font-weight:700}
+    @media (max-width:640px){.wrap{padding:12px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Study Custom Cards</h1>
+        <p>Click <strong>Answer</strong> to reveal, then <strong>Next</strong> for a new random card. Press <span class="kbd">A</span> = Answer, <span class="kbd">N</span> = Next.</p>
+      </div>
+      <div class="meta">
+        <div class="tags" id="current-tags"></div>
+        <script src="questions.js"></script>
+      </div>
+    </header>
+
+    <div class="card" id="card">
+      <div class="question" id="question">Loading...</div>
+      <div class="answer" id="answer"></div>
+
+      <div class="controls">
+        <button id="knowBtn" class="small">I know it</button>
+        <button id="answerBtn" class="small">Show Answer</button>
+        <button id="nextBtn" class="primary small">Next</button>
+        <button id="shuffleBtn" class="small">Shuffle & Reset</button>
+        <button id="restartBtn" class="small">Restart Deck</button>
+        <button id="begginingBtn" class="small">Restart Index</button>
+      </div>
+
+      <div class="progress" id="progress">0 / 0</div>
+    </div>
+
+    <footer>
+      <div>Deck: <strong id="deckName">Fullstack — Misc</strong></div>
+      <div id="hint">Tip: press <span class="kbd">A</span> to reveal, <span class="kbd">N</span> for next.</div>
+    </footer>
+  </div>
+
+  <script>
+    // State
+    let order = [];
+    let currentIndex = -1; // index into order
+    const questionEl = document.getElementById('question');
+    const answerEl = document.getElementById('answer');
+    const answerBtn = document.getElementById('answerBtn');
+    const knowBtn = document.getElementById('knowBtn'); 
+    const begginingBtn = document.getElementById('begginingBtn'); 
+    const nextBtn = document.getElementById('nextBtn');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const progressEl = document.getElementById('progress');
+    const tagsEl = document.getElementById('current-tags');
+    const deckNameEl = document.getElementById('deckName');
+
+    function shuffleArray(n){
+      const a = Array.from({length:n}, (_,i)=>i);
+      for(let i=a.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]
+      }
+      return a;
+    }
+
+    function initDeck(shuffle=true){
+      order = shuffle ? shuffleArray(cards.length) : Array.from({length:cards.length},(_,i)=>i);
+      currentIndex = -1;
+      updateProgress();
+    }
+
+    function showCardAtOrder(pos){
+      if(pos<0 || pos>=order.length){
+        questionEl.textContent = 'No more cards. Click "Shuffle & Reset" to reshuffle or "Restart Deck" to go back to the start.';
+        answerEl.style.display='none';
+        tagsEl.innerHTML='';
+        return;
+      }
+      const c = cards[order[pos]];
+      questionEl.textContent = c.question;
+      answerEl.textContent = c.answer;
+      answerEl.style.display='none';
+      renderTags(c.tags || []);
+      updateProgress();
+    }
+
+    function renderTags(tags){
+      tagsEl.innerHTML = '';
+      tags.forEach(t=>{
+        const span = document.createElement('span'); span.className='tag'; span.textContent=t; tagsEl.appendChild(span);
+      })
+    }
+
+    function showNext(){
+      if(currentIndex+1 >= order.length){
+        currentIndex = order.length; // out of range
+        showCardAtOrder(currentIndex);
+        return;
+      }
+      currentIndex++;
+      showCardAtOrder(currentIndex);
+    }
+
+    function handleKnowIt() {
+      if (currentIndex < 0 || currentIndex >= order.length) return; // safety check
+
+      order.splice(currentIndex, 1);
+      currentIndex--; // Decrease the index to stay on the next card after the removal
+      showNext();
+    }
+
+    function begginingIndex() {
+      currentIndex = -1;
+      showNext();
+    }
+
+    function showAnswer() {
+      if (answerEl.style.display === 'block') {
+        answerEl.style.display = 'none';
+      } else {
+        answerEl.style.display = 'block';
+      }
+    }
+
+
+    function updateProgress(){
+      const done = Math.min(Math.max(currentIndex+1, 0), order.length);
+      progressEl.textContent = done + ' / ' + order.length;
+    }
+
+    answerBtn.addEventListener('click', () => showAnswer());
+    nextBtn.addEventListener('click', () => { showNext(); });
+    shuffleBtn.addEventListener('click', () => { initDeck(true); showNext(); });
+    restartBtn.addEventListener('click', () => { initDeck(false); showNext(); });
+    knowBtn.addEventListener('click', () => { handleKnowIt(); });
+    begginingBtn.addEventListener('click', () => { begginingIndex(); });
+
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if(e.key.toLowerCase()==='a') showAnswer();
+      if(e.key.toLowerCase()==='n') showNext();
+      if (e.key.toLowerCase() === 'k') handleKnowIt();
+    });
+
+    // initialize
+    initDeck(true);
+    // first card should show question only; user asked that first should show question and then answer on button
+    showNext();
+
+    // expose for debugging in console
+    window.__flash = {cards, initDeck, showNext, showAnswer};
+  </script>
+</body>
+</html>
